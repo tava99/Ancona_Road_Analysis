@@ -1,3 +1,11 @@
+<div align="center"> 
+  <img src="logo_networkx.webp" alt="Logo project NetworkX" width="200" height="200"/>
+</div>
+
+<h1 align="center">Network</h1>
+
+
+
 # Road Network of Italy (OSM)
 
 Questa repository contiene l'analisi e gli script relativi alla rete stradale dell'Italia, basata sul dataset OpenStreetMap (OSM). Il progetto utilizza il grafo della rete stradale per scopi di analisi e visualizzazione.
