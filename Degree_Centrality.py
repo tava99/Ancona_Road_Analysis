@@ -1,42 +1,81 @@
+import geopandas as gpd
 import networkx as nx
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-import numpy as np
+from matplotlib.colors import Normalize
+import matplotlib.cm as cm
+import os
 
-def carica_grafo_da_edges(percorso):
-    print(f"Caricando il grafo dal file: {percorso}")
-    with open(percorso, "r") as f:
-        lines = [line for line in f if not line.startswith("%")]
-    with open("filtered_edges.txt", "w") as f:
-        f.writelines(lines)
-    grafo = nx.read_edgelist("filtered_edges.txt", nodetype=int, create_using=nx.Graph())
-    print(f"Grafo caricato con successo: {grafo.number_of_nodes()} nodi, {grafo.number_of_edges()} archi.")
-    return grafo
+def load_graph_from_gpkg(file_path):
+    """Carica il grafo dal file GPKG tagliato e verifica le geometrie."""
+    gdf = gpd.read_file(file_path, layer="edges")  # Usare il layer "edges" del dataset tagliato
+    print(gdf.head())  # Visualizza le prime righe per controllare le geometrie
 
-def degree_centrality_analysis(grafo, num_nodi=5000):
-    print(f"Analisi Degree Centrality per i primi {num_nodi} nodi...")
-    sub_grafo = grafo.subgraph(list(grafo.nodes)[:num_nodi])
-    centrality = {nodo: len(list(sub_grafo.neighbors(nodo))) / (len(sub_grafo.nodes) - 1)
-                  for nodo in tqdm(sub_grafo.nodes, desc="Degree Centrality")}
+    G = nx.Graph()
+    for _, row in gdf.iterrows():
+        if row.geometry.geom_type == 'LineString':
+            coords = list(row.geometry.coords)
+            for i in range(len(coords) - 1):
+                G.add_edge(coords[i], coords[i + 1])
 
-    print(f"Centralità calcolata per {len(centrality)} nodi. Visualizzazione in corso...")
-    pos = nx.spring_layout(sub_grafo)
-    plt.figure(figsize=(12, 12))
-    nx.draw(sub_grafo, pos, node_size=np.array([v * 1000 for v in centrality.values()]),
-            node_color='blue', with_labels=False)
-    plt.title("Grafo basato sulla Degree Centrality")
+    print(f"Numero di nodi: {G.number_of_nodes()}")
+    print(f"Numero di archi: {G.number_of_edges()}")
+    return G
+
+def plot_graph_with_centrality(G, centrality, title, filename=None):
+    """Visualizza il grafo con i nodi colorati in base alla centralità e salva il risultato."""
+    fig, ax = plt.subplots(figsize=(12, 10))
+    pos = {node: node for node in G.nodes}
+
+    norm = Normalize(vmin=min(centrality.values()), vmax=max(centrality.values()))
+    cmap = cm.Blues
+
+    nodes = nx.draw_networkx_nodes(G, pos, ax=ax, node_size=20,
+                                   node_color=[norm(v) for v in centrality.values()], cmap=cmap)
+    nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray")
+
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax)
+    cbar.set_label("Centralità")
+
+    ax.set_title(title)
+
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"Grafo salvato come: {filename}")
+
     plt.show()
 
+def plot_centrality_histogram(centrality, title, filename=None):
+    """Genera e salva l'istogramma della centralità."""
     plt.figure(figsize=(10, 6))
-    plt.bar(range(len(centrality)), list(centrality.values()), color='blue')
-    plt.title("Istogramma della Degree Centrality")
-    plt.xlabel("Nodi")
-    plt.ylabel("Centralità")
+    plt.hist(centrality.values(), bins=50, color='skyblue', edgecolor='black')
+    plt.xlabel("Valore di Centralità")
+    plt.ylabel("Frequenza")
+    plt.title(title)
+
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"Istogramma salvato come: {filename}")
+
     plt.show()
+
+def compute_and_plot_degree_centrality(file_path, output_dir):
+    """Calcola, visualizza la degree centrality e l'istogramma."""
+    G = load_graph_from_gpkg(file_path)
+    centrality = nx.degree_centrality(G)
+
+    # Salva il grafo con degree centrality
+    graph_filename = os.path.join(output_dir, "degree_centrality_graph.jpg")
+    plot_graph_with_centrality(G, centrality, "Grafo con Degree Centrality", filename=graph_filename)
+
+    # Salva l'istogramma della centralità
+    hist_filename = os.path.join(output_dir, "degree_centrality_histogram.jpg")
+    plot_centrality_histogram(centrality, "Istogramma della Degree Centrality", filename=hist_filename)
 
 if __name__ == "__main__":
-    DATASET_PATH = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\road-italy-osm.edges"
-    print("Inizio del programma.")
-    grafo = carica_grafo_da_edges(DATASET_PATH)
-    degree_centrality_analysis(grafo)
-    print("Fine del programma.")
+    file_path = r"C:\\Users\\pc\\OneDrive\\Desktop\\Magistrale Ancona\\Data science\\Progetto\\Networkx\\filtered_ancona.gpkg"  # Dataset tagliato
+    output_dir = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    compute_and_plot_degree_centrality(file_path, output_dir)
