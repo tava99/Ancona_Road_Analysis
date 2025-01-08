@@ -1,47 +1,122 @@
+import geopandas as gpd
 import networkx as nx
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+import matplotlib.cm as cm
 from tqdm import tqdm
-import numpy as np
+import os
+from shapely.geometry import LineString
 
-def carica_grafo_da_edges(percorso):
+def load_graph_from_gpkg_interactive(gpkg_file, layer_name="edges"):
     """
-    Carica un grafo da un file di archi (.edges) ignorando eventuali righe di intestazione.
+    Carica un grafo da un file GeoPackage tagliato e restituisce nodi e archi con una barra di caricamento.
     """
-    print(f"Caricando il grafo dal file: {percorso}")
-    with open(percorso, "r") as f:
-        lines = [line for line in f if not line.startswith("%")]
-    with open("filtered_edges.txt", "w") as f:
-        f.writelines(lines)
-    grafo = nx.read_edgelist("filtered_edges.txt", nodetype=int, create_using=nx.Graph())
-    print(f"Grafo caricato con successo: {grafo.number_of_nodes()} nodi, {grafo.number_of_edges()} archi.")
-    return grafo
+    print("Caricamento del file GeoPackage...")
+    gdf = gpd.read_file(gpkg_file, layer=layer_name)  # Usare il layer "edges" del dataset tagliato
+    if gdf.crs is None:
+        raise ValueError("Il CRS del file GeoPackage non è definito.")
+    gdf = gdf.to_crs(epsg=4326)
 
-def betweenness_centrality_analysis(grafo, num_nodi=5000):
-    """
-    Analisi della Betweenness Centrality per i primi num_nodi del grafo.
-    """
-    print(f"Analisi Betweenness Centrality per i primi {num_nodi} nodi...")
-    sub_grafo = grafo.subgraph(list(grafo.nodes)[:num_nodi])
-    centrality = nx.betweenness_centrality(sub_grafo, normalized=True)
+    nodes, edges = set(), []
+    print("Estrazione dei nodi e degli archi...")
+    for _, row in tqdm(gdf.iterrows(), total=len(gdf), desc="Processamento geometrie"):
+        line = row.geometry
+        if isinstance(line, LineString):
+            coords = list(line.coords)
+            for i in range(len(coords) - 1):
+                edges.append((coords[i], coords[i + 1]))
+                nodes.update([coords[i], coords[i + 1]])
+    return list(nodes), edges
 
-    print(f"Centralità calcolata per {len(centrality)} nodi. Visualizzazione in corso...")
-    pos = nx.spring_layout(sub_grafo)
-    plt.figure(figsize=(12, 12))
-    nx.draw(sub_grafo, pos, node_size=np.array([v * 1000 for v in centrality.values()]),
-            node_color='green', with_labels=False)
-    plt.title("Grafo basato sulla Betweenness Centrality")
-    plt.show()
+def create_networkx_graph_from_edges(edges):
+    """
+    Crea un grafo NetworkX a partire da una lista di archi.
+    """
+    print("Creazione del grafo NetworkX...")
+    G = nx.Graph()
+    G.add_edges_from(edges)
+    return G
 
-    plt.figure(figsize=(10, 6))
-    plt.bar(range(len(centrality)), list(centrality.values()), color='green')
-    plt.title("Istogramma della Betweenness Centrality")
-    plt.xlabel("Nodi")
-    plt.ylabel("Centralità")
-    plt.show()
+def compute_betweenness_centrality(G, k=None):
+    """
+    Calcola la Betweenness Centrality per un grafo, con supporto per campionamento approssimativo.
+    """
+    print("Calcolo della Betweenness Centrality...")
+    try:
+        # Usa il parametro `k` per un calcolo approssimativo se specificato
+        centrality = nx.betweenness_centrality(G, k=k, normalized=True)
+        return centrality
+    except Exception as e:
+        print(f"Errore durante il calcolo della Betweenness Centrality: {e}")
+        return {}
+
+def plot_graph_with_centrality(G, centrality, title, filename):
+    """
+    Genera un grafico statico del grafo con colori che rappresentano la Betweenness Centrality.
+    """
+    print("Generazione del grafico della Betweenness Centrality...")
+    try:
+        fig, ax = plt.subplots(figsize=(12, 10))
+        pos = {node: node for node in G.nodes}
+        norm = Normalize(vmin=min(centrality.values()), vmax=max(centrality.values()))
+        cmap = cm.Blues
+        nx.draw_networkx_nodes(G, pos, ax=ax, node_size=20,
+                               node_color=[norm(centrality[node]) for node in G.nodes], cmap=cmap)
+        nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray")
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        cbar = fig.colorbar(sm, ax=ax)
+        cbar.set_label("Betweenness Centrality")
+        ax.set_title(title)
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.show()
+    except Exception as e:
+        print(f"Errore durante la generazione del grafico: {e}")
+
+def plot_centrality_histogram(centrality, filename):
+    """
+    Genera un istogramma della distribuzione della Betweenness Centrality.
+    """
+    print("Generazione dell'istogramma della Betweenness Centrality...")
+    try:
+        values = list(centrality.values())
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.hist(values, bins=30, color="blue", edgecolor="black", alpha=0.7)
+        ax.set_title("Distribuzione della Betweenness Centrality")
+        ax.set_xlabel("Betweenness Centrality")
+        ax.set_ylabel("Numero di nodi")
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.show()
+    except Exception as e:
+        print(f"Errore durante la generazione dell'istogramma: {e}")
 
 if __name__ == "__main__":
-    DATASET_PATH = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\road-italy-osm.edges"
-    print("Inizio del programma.")
-    grafo = carica_grafo_da_edges(DATASET_PATH)
-    betweenness_centrality_analysis(grafo)
-    print("Fine del programma.")
+    gpkg_file = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\data\\filtered_ancona.gpkg"  # Dataset tagliato
+    output_dir = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    try:
+        # Caricamento e processamento del file GeoPackage
+        nodes, edges = load_graph_from_gpkg_interactive(gpkg_file, layer_name="edges")
+
+        # Creazione del grafo NetworkX
+        G = create_networkx_graph_from_edges(edges)
+
+        # Determina il campionamento per grafi grandi
+        k_sample = 1500 if len(G.nodes) > 500 else None
+        print(f"Utilizzando campionamento di {k_sample} nodi per la centralità." if k_sample else "Calcolo esatto della centralità.")
+
+        # Calcolo della Betweenness Centrality con barra di caricamento
+        centrality = compute_betweenness_centrality(G, k=k_sample)
+
+        # Salvataggio del grafico della Betweenness Centrality
+        plot_filename = os.path.join(output_dir, "betweenness_centrality_graph.jpg")
+        plot_graph_with_centrality(G, centrality, "Grafo con Betweenness Centrality", plot_filename)
+
+        # Salvataggio dell'istogramma
+        hist_filename = os.path.join(output_dir, "betweenness_centrality_histogram.jpg")
+        plot_centrality_histogram(centrality, hist_filename)
+
+        print(f"Grafico salvato in: {plot_filename}")
+        print(f"Istogramma salvato in: {hist_filename}")
+    except Exception as e:
+        print("Errore:", e)
