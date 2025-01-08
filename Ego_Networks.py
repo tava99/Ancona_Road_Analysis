@@ -1,62 +1,84 @@
+import geopandas as gpd
 import networkx as nx
+from shapely.geometry import LineString, MultiLineString
 import matplotlib.pyplot as plt
 import os
 
-if __name__ == "__main__":
-    DATASET_PATH = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\road-italy-osm.edges"
-    print("Inizio del programma.")
+
+def analyze_ego_networks_from_geometry(file_path, layer, ego_node, radius=1):
+    """
+    Analizza le ego networks usando dati geometrici per estrarre nodi e archi.
+
+    :param file_path: Percorso del file geopackage contenente i dati.
+    :param layer: Nome del layer da utilizzare nel file geopackage (es: 'edges').
+    :param ego_node: Nodo di cui calcolare la ego network.
+    :param radius: Raggio della ego network (default = 1).
+    """
+    # Leggi il layer specificato dal file geopackage
+    gdf = gpd.read_file(file_path, layer=layer)
+
+    print(f"Dataset caricato dal layer '{layer}': {len(gdf)} righe.")
+
+    # Verifica che la colonna 'geometry' esista
+    if 'geometry' not in gdf.columns:
+        print("Errore: Il dataset non contiene una colonna 'geometry'.")
+        return
+
+    # Estrai nodi e archi dalla colonna 'geometry'
+    edges = []
+    for _, row in gdf.iterrows():
+        geom = row['geometry']
+        if isinstance(geom, LineString):
+            coords = list(geom.coords)
+            edges.append((coords[0], coords[-1]))
+        elif isinstance(geom, MultiLineString):
+            for line in geom:
+                coords = list(line.coords)
+                edges.append((coords[0], coords[-1]))
+
+    # Crea un grafo da archi
+    G = nx.Graph()
+    G.add_edges_from(edges)
+
+    print(f"Il grafo contiene {G.number_of_nodes()} nodi e {G.number_of_edges()} archi.")
+
+    # Controlla se il nodo esiste
+    if ego_node not in G:
+        print(f"Errore: il nodo '{ego_node}' non è presente nel grafo.")
+        print("Ecco un esempio di nodi disponibili:")
+        print(list(G.nodes)[:100])
+        return
+
+    # Estrazione della ego network
+    ego_net = nx.ego_graph(G, n=ego_node, radius=radius)
+
+    print(f"L'ego network del nodo '{ego_node}' (raggio={radius}) contiene:")
+    print(f"- {ego_net.number_of_nodes()} nodi")
+    print(f"- {ego_net.number_of_edges()} archi")
+
+    # Disegno della ego network
+    plt.figure(figsize=(8, 8))
+    pos = nx.spring_layout(ego_net)
+    nx.draw(ego_net, pos, with_labels=True, node_size=500, node_color='lightblue', font_size=10)
+    plt.title(f"Ego Network di '{ego_node}' (raggio={radius})")
+
+    # Salvataggio dell'immagine
+    output_dir = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, f"ego_network.png")
+    plt.savefig(output_file)
+    print(f"L'immagine della ego network è stata salvata in: {output_file}")
+
+    # Mostra il grafico
+    plt.show()
 
 
-    # Funzione per caricare il grafo da un file di archi
-    def carica_grafo_da_edges(percorso):
-        if not os.path.exists(percorso):
-            raise FileNotFoundError(f"Il file {percorso} non esiste.")
+# Configurazione del file e layer
+file_path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
+layer = "edges"  # Specifica il layer degli archi
+ego_node = ((13.507047, 43.6135432))  # Esempio di nodo come coordinate (longitudine, latitudine)
+radius = 3  # Scegliere il raggio
 
-        print(f"Caricando il grafo dal file: {percorso}")
-        with open(percorso, "r") as f:
-            lines = [line for line in f if not line.startswith("%")]
+# Esecuzione dell'analisi
+analyze_ego_networks_from_geometry(file_path, layer, ego_node, radius)
 
-        if not lines:
-            raise ValueError("Il file fornito non contiene archi validi.")
-
-        with open("filtered_edges.txt", "w") as f:
-            f.writelines(lines)
-
-        grafo = nx.read_edgelist("filtered_edges.txt", nodetype=int, create_using=nx.Graph())
-        print(f"Grafo caricato con successo: {grafo.number_of_nodes()} nodi, {grafo.number_of_edges()} archi.")
-        return grafo
-
-
-    # Funzione per calcolare e visualizzare la rete ego
-    def ego_network_analysis(grafo, nodo, num_nodi=10000):
-        """
-        Trova e visualizza la rete ego di un nodo specifico.
-        """
-        print(f"Creazione del sottografo con i primi {num_nodi} nodi...")
-        sub_grafo = grafo.subgraph(list(grafo.nodes)[:num_nodi])
-        print(f"Sottografo creato: {sub_grafo.number_of_nodes()} nodi, {sub_grafo.number_of_edges()} archi.")
-
-        if nodo not in sub_grafo.nodes:
-            print(f"Errore: il nodo {nodo} non esiste nel sottografo.")
-            return
-
-        print(f"Calcolo della rete ego per il nodo {nodo}...")
-        ego_net = nx.ego_graph(sub_grafo, nodo)
-        print(f"Rete ego di {nodo} contiene {ego_net.number_of_nodes()} nodi e {ego_net.number_of_edges()} archi.")
-
-        # Visualizza la rete ego
-        pos = nx.spring_layout(ego_net)
-        plt.figure(figsize=(12, 12))
-        nx.draw(ego_net, pos, with_labels=True, node_color='orange', edge_color='black')
-        plt.title(f"Rete ego per il nodo {nodo}")
-        plt.show()
-
-
-    # Caricamento del grafo
-    grafo = carica_grafo_da_edges(DATASET_PATH)
-
-    # Analisi della rete ego
-    nodo = 1  # Sostituire con il nodo desiderato
-    ego_network_analysis(grafo, nodo=nodo, num_nodi=5000)
-
-    print("Fine del programma.")
