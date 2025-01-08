@@ -1,47 +1,107 @@
+import geopandas as gpd
 import networkx as nx
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+import matplotlib.cm as cm
+import os
 from tqdm import tqdm
-import numpy as np
 
-def carica_grafo_da_edges(percorso):
-    """
-    Carica un grafo da un file di archi (.edges) ignorando eventuali righe di intestazione.
-    """
-    print(f"Caricando il grafo dal file: {percorso}")
-    with open(percorso, "r") as f:
-        lines = [line for line in f if not line.startswith("%")]
-    with open("filtered_edges.txt", "w") as f:
-        f.writelines(lines)
-    grafo = nx.read_edgelist("filtered_edges.txt", nodetype=int, create_using=nx.Graph())
-    print(f"Grafo caricato con successo: {grafo.number_of_nodes()} nodi, {grafo.number_of_edges()} archi.")
-    return grafo
+def load_graph_from_gpkg(file_path):
+    try:
+        print("Caricamento del file GeoPackage...")
+        gdf = gpd.read_file(file_path, layer="edges")  # Usare il layer "edges" del dataset tagliato
 
-def closeness_centrality_analysis(grafo, num_nodi=5000):
-    """
-    Analisi della Closeness Centrality per i primi num_nodi del grafo.
-    """
-    print(f"Analisi Closeness Centrality per i primi {num_nodi} nodi...")
-    sub_grafo = grafo.subgraph(list(grafo.nodes)[:num_nodi])
-    centrality = nx.closeness_centrality(sub_grafo)
+        if gdf.empty:
+            print("Il layer specificato non contiene dati.")
+            return None
 
-    print(f"Centralità calcolata per {len(centrality)} nodi. Visualizzazione in corso...")
-    pos = nx.spring_layout(sub_grafo)
-    plt.figure(figsize=(12, 12))
-    nx.draw(sub_grafo, pos, node_size=np.array([v * 1000 for v in centrality.values()]),
-            node_color='red', with_labels=False)
-    plt.title("Grafo basato sulla Closeness Centrality")
-    plt.show()
+        G = nx.Graph()
+        print("Creazione del grafo...")
+        for _, row in tqdm(gdf.iterrows(), total=len(gdf), desc="Aggiunta di nodi e archi"):
+            if row.geometry.geom_type == 'LineString':
+                coords = list(row.geometry.coords)
+                for i in range(len(coords) - 1):
+                    G.add_edge(coords[i], coords[i + 1])
 
-    plt.figure(figsize=(10, 6))
-    plt.bar(range(len(centrality)), list(centrality.values()), color='red')
-    plt.title("Istogramma della Closeness Centrality")
-    plt.xlabel("Nodi")
-    plt.ylabel("Centralità")
-    plt.show()
+        return G
+    except Exception as e:
+        print(f"Errore durante il caricamento del grafo: {e}")
+        return None
+
+def compute_closeness_centrality(G):
+    print("Calcolo della centralità di closeness...")
+    centrality = {}
+    for node in tqdm(G.nodes, desc="Calcolo per i nodi"):
+        centrality[node] = nx.closeness_centrality(G, u=node)
+    return centrality
+
+def plot_graph_with_centrality(G, centrality, title, filename):
+    print("Generazione del grafico della centralità di closeness...")
+    try:
+        fig, ax = plt.subplots(figsize=(12, 10))
+        pos = {node: node for node in G.nodes}
+
+        norm = Normalize(vmin=min(centrality.values()), vmax=max(centrality.values()))
+        cmap = cm.Blues
+
+        nodes = nx.draw_networkx_nodes(
+            G, pos, ax=ax, node_size=20, node_color=[norm(v) for v in centrality.values()], cmap=cmap
+        )
+        nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray")
+
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax)
+        cbar.set_label("Closeness Centrality")
+
+        ax.set_title(title)
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.show()
+    except Exception as e:
+        print(f"Errore durante la generazione del grafico: {e}")
+
+def plot_histogram_of_centrality(centrality, title, filename):
+    """
+    Genera un istogramma per i valori di closeness centrality.
+    """
+    print("Generazione dell'istogramma della centralità di closeness...")
+    try:
+        plt.figure(figsize=(10, 6))
+        plt.hist(centrality.values(), bins=30, color='blue', alpha=0.7)
+        plt.title(title)
+        plt.xlabel("Valore di Closeness Centrality")
+        plt.ylabel("Frequenza")
+        plt.grid(axis='y', alpha=0.75)
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.show()
+        print(f"Istogramma salvato in: {filename}")
+    except Exception as e:
+        print(f"Errore durante la generazione dell'istogramma: {e}")
 
 if __name__ == "__main__":
-    DATASET_PATH = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\road-italy-osm.edges"
-    print("Inizio del programma.")
-    grafo = carica_grafo_da_edges(DATASET_PATH)
-    closeness_centrality_analysis(grafo)
-    print("Fine del programma.")
+    file_path = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\data\\filtered_ancona.gpkg"  # Dataset tagliato
+    output_dir = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results"
+
+    # Assicurati che la directory di output esista
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Carica il grafo dal file .gpkg
+    G = load_graph_from_gpkg(file_path)
+
+    # Controlla se il grafo è vuoto
+    if G is None or len(G.nodes) == 0:
+        print("Il grafo è vuoto. Controlla il file e il layer specificato.")
+    else:
+        # Calcola la centralità di closeness
+        centrality = compute_closeness_centrality(G)
+
+        # Genera il grafico e salva il file
+        output_file = os.path.join(output_dir, "closeness_centrality.png")
+        plot_graph_with_centrality(G, centrality, "Closeness Centrality", output_file)
+
+        # Genera e salva l'istogramma della centralità di closeness
+        histogram_file = os.path.join(output_dir, "closeness_centrality_histogram.png")
+        plot_histogram_of_centrality(centrality, "Istogramma della Closeness Centrality", histogram_file)
+
+        print(f"Grafico salvato in: {output_file}")
+        print(f"Istogramma salvato in: {histogram_file}")
