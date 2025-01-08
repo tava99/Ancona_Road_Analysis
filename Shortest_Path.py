@@ -1,62 +1,103 @@
+import geopandas as gpd
 import networkx as nx
+from shapely.geometry import Point
 import matplotlib.pyplot as plt
 import os
 
-if __name__ == "__main__":
-    DATASET_PATH = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\road-italy-osm.edges"
-    print("Inizio del programma.")
+# Percorso al file GeoPackage
+path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
 
+# Coordinate dei nodi di partenza e arrivo
+start_node = (13.507047, 43.6135432)  # (longitudine, latitudine)
+end_node = (13.5024282, 43.6084696)  # (longitudine, latitudine)
 
-    # Funzione per caricare il grafo da un file di archi
-    def carica_grafo_da_edges(percorso):
-        if not os.path.exists(percorso):
-            raise FileNotFoundError(f"Il file {percorso} non esiste.")
+# Caricamento dei layer
+nodes = gpd.read_file(path, layer='nodes')
+edges = gpd.read_file(path, layer='edges')
 
-        print(f"Caricando il grafo dal file: {percorso}")
-        with open(percorso, "r") as f:
-            lines = [line for line in f if not line.startswith("%")]
+# Converte i layer in un sistema di riferimento proiettato
+projected_crs = "EPSG:32633"  # UTM zona 33N
+nodes = nodes.to_crs(projected_crs)
+edges = edges.to_crs(projected_crs)
 
-        if not lines:
-            raise ValueError("Il file fornito non contiene archi validi.")
+# Creazione delle colonne 'source', 'target' e 'weight'
+edges['source'] = edges.geometry.apply(lambda x: Point(x.coords[0]))  # Nodo iniziale
+edges['target'] = edges.geometry.apply(lambda x: Point(x.coords[-1]))  # Nodo finale
+edges['weight'] = edges.geometry.length  # Peso basato sulla lunghezza della geometria
 
-        with open("filtered_edges.txt", "w") as f:
-            f.writelines(lines)
+# Mappatura dei nodi sorgente e destinazione con gli ID dai nodi
+def find_closest_node(point, nodes_gdf):
+    """Trova l'ID del nodo più vicino a un punto dato."""
+    nodes_gdf['distance'] = nodes_gdf.geometry.distance(point)
+    closest_node = nodes_gdf.loc[nodes_gdf['distance'].idxmin()]
+    return closest_node['osm_id']  # Usa 'osm_id' come identificativo
 
-        grafo = nx.read_edgelist("filtered_edges.txt", nodetype=int, create_using=nx.Graph())
-        print(f"Grafo caricato con successo: {grafo.number_of_nodes()} nodi, {grafo.number_of_edges()} archi.")
-        return grafo
+edges['source'] = edges['source'].apply(lambda point: find_closest_node(point, nodes))
+edges['target'] = edges['target'].apply(lambda point: find_closest_node(point, nodes))
 
+# Creazione del grafo
+G = nx.DiGraph()
 
-    # Funzione per calcolare e visualizzare la rete ego
-    def ego_network_analysis(grafo, nodo, num_nodi=5000):
-        """
-        Trova e visualizza la rete ego di un nodo specifico.
-        """
-        print(f"Creazione del sottografo con i primi {num_nodi} nodi...")
-        sub_grafo = grafo.subgraph(list(grafo.nodes)[:num_nodi])
-        print(f"Sottografo creato: {sub_grafo.number_of_nodes()} nodi, {sub_grafo.number_of_edges()} archi.")
+# Aggiunta dei nodi al grafo
+for _, row in nodes.iterrows():
+    G.add_node(row['osm_id'], pos=(row.geometry.x, row.geometry.y))  # Usa 'osm_id' come identificativo
 
-        if nodo not in sub_grafo.nodes:
-            print(f"Errore: il nodo {nodo} non esiste nel sottografo.")
-            return
+# Aggiunta degli archi al grafo
+for _, edge in edges.iterrows():
+    G.add_edge(edge['source'], edge['target'], weight=edge['weight'])
 
-        print(f"Calcolo della rete ego per il nodo {nodo}...")
-        ego_net = nx.ego_graph(sub_grafo, nodo)
-        print(f"Rete ego di {nodo} contiene {ego_net.number_of_nodes()} nodi e {ego_net.number_of_edges()} archi.")
+# Converte le coordinate dei nodi di partenza e arrivo in punti nel CRS proiettato
+start_point = gpd.GeoSeries([Point(start_node)], crs="EPSG:4326").to_crs(projected_crs).geometry[0]
+end_point = gpd.GeoSeries([Point(end_node)], crs="EPSG:4326").to_crs(projected_crs).geometry[0]
 
-        # Visualizza la rete ego
-        pos = nx.spring_layout(ego_net)
-        plt.figure(figsize=(12, 12))
-        nx.draw(ego_net, pos, with_labels=True, node_color='orange', edge_color='black')
-        plt.title(f"Rete ego per il nodo {nodo}")
-        plt.show()
+# Trova i nodi più vicini alle coordinate di partenza e arrivo
+start_node_id = find_closest_node(start_point, nodes)
+end_node_id = find_closest_node(end_point, nodes)
 
+print(f"Nodo di partenza più vicino: {start_node_id}")
+print(f"Nodo di arrivo più vicino: {end_node_id}")
 
-    # Caricamento del grafo
-    grafo = carica_grafo_da_edges(DATASET_PATH)
+# Calcolo del percorso più breve
+try:
+    shortest_path = nx.shortest_path(G, source=start_node_id, target=end_node_id, weight='weight')
+    shortest_path_length = nx.shortest_path_length(G, source=start_node_id, target=end_node_id, weight='weight')
 
-    # Analisi della rete ego
-    nodo = 1  # Sostituire con il nodo desiderato
-    ego_network_analysis(grafo, nodo=nodo, num_nodi=5000)
+    print(f"Percorso più breve: {shortest_path}")
+    print(f"Lunghezza del percorso più breve: {shortest_path_length}")
 
-    print("Fine del programma.")
+    # Estrai le coordinate dei nodi nel percorso
+    shortest_path_coords = [(G.nodes[node]['pos'][0], G.nodes[node]['pos'][1]) for node in shortest_path]
+    print("Coordinate del percorso più breve:")
+    for coord in shortest_path_coords:
+        print(coord)
+
+    # Directory di output per le immagini
+    output_dir = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Disegna il grafo e il percorso più breve
+    plt.figure(figsize=(10, 10))
+    pos = nx.get_node_attributes(G, 'pos')
+    nx.draw(G, pos, node_size=10, edge_color='gray', alpha=0.5)
+    nx.draw_networkx_nodes(G, pos, nodelist=shortest_path, node_color='red', node_size=50)
+    nx.draw_networkx_edges(G, pos, edgelist=list(zip(shortest_path, shortest_path[1:])), edge_color='blue', width=2)
+    plt.title("Grafo e percorso più breve")
+    graph_path = os.path.join(output_dir, "graph_shortest_path.png")
+    plt.savefig(graph_path)
+    print(f"Il grafo è stato salvato in: {graph_path}")
+    plt.show()
+
+    # Calcolo e visualizzazione della distribuzione delle shortest path dal nodo di partenza
+    lengths = nx.single_source_dijkstra_path_length(G, source=start_node_id, weight='weight')
+    plt.figure(figsize=(10, 6))
+    plt.hist(lengths.values(), bins=30, edgecolor='black')
+    plt.title("Distribuzione delle shortest path dal nodo di partenza")
+    plt.xlabel("Lunghezza del percorso")
+    plt.ylabel("Frequenza")
+    histogram_path = os.path.join(output_dir, "shortest_path_distribution.png")
+    plt.savefig(histogram_path)
+    print(f"L'istogramma è stato salvato in: {histogram_path}")
+    plt.show()
+
+except nx.NetworkXNoPath:
+    print(f"Non esiste un percorso tra il nodo {start_node_id} e il nodo {end_node_id}.")
