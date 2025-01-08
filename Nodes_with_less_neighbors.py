@@ -1,57 +1,84 @@
+import geopandas as gpd
 import networkx as nx
 import matplotlib.pyplot as plt
 import os
+from shapely.geometry import LineString
+
+
+def load_graph_from_gpkg(file_path, layer_name="edges"):
+    """
+    Carica un grafo da un file GeoPackage.
+
+    :param file_path: Percorso del file GeoPackage.
+    :param layer_name: Nome del layer da utilizzare (default: "edges").
+    :return: Un grafo NetworkX.
+    """
+    gdf = gpd.read_file(file_path, layer=layer_name)
+
+    G = nx.Graph()
+    for _, row in gdf.iterrows():
+        if row.geometry.geom_type == 'LineString':
+            coords = list(row.geometry.coords)
+            for i in range(len(coords) - 1):
+                G.add_edge(coords[i], coords[i + 1], weight=row.geometry.length)
+
+    return G
+
+
+def nodes_with_less_neighbors(G):
+    """
+    Trova i nodi con il minor numero di vicini.
+
+    :param G: Grafo NetworkX.
+    :return: Lista di nodi con il minor numero di vicini.
+    """
+    degrees = dict(G.degree())
+    min_neighbors = min(degrees.values())
+
+    nodes_min = [node for node, degree in degrees.items() if degree == min_neighbors]
+
+    print(f"Nodi con meno vicini ({min_neighbors}): {nodes_min}")
+
+    return nodes_min
+
+
+def plot_graph_with_low_degree_nodes(G, low_degree_nodes, output_path):
+    """
+    Crea un'immagine del grafo con i nodi a basso grado evidenziati.
+
+    :param G: Grafo NetworkX.
+    :param low_degree_nodes: Lista di nodi a basso grado.
+    :param output_path: Percorso di output per salvare l'immagine.
+    """
+    pos = {node: (node[0], node[1]) for node in G.nodes}
+
+    plt.figure(figsize=(10, 10))
+
+    # Disegna il grafo completo
+    nx.draw(G, pos, node_size=10, edge_color='gray', alpha=0.7, with_labels=False)
+
+    # Evidenzia i nodi con meno vicini
+    nx.draw_networkx_nodes(G, pos, nodelist=low_degree_nodes, node_size=50, node_color='blue')
+
+    plt.title("Grafo con nodi a basso grado evidenziati")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+    print(f"Immagine salvata in {output_path}")
+
 
 if __name__ == "__main__":
-    DATASET_PATH = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\road-italy-osm.edges"
-    print("Inizio del programma.")
+    # Configura i percorsi
+    file_path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
+    layer_name = "edges"  # Layer del GeoPackage
+    output_image = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results\graph_low_degree_nodes.png"
 
+    # Carica il grafo dal dataset
+    G = load_graph_from_gpkg(file_path, layer_name)
 
-    # Funzione per caricare il grafo da un file di archi
-    def carica_grafo_da_edges(percorso):
-        if not os.path.exists(percorso):
-            raise FileNotFoundError(f"Il file {percorso} non esiste.")
+    # Trova i nodi con il minor numero di vicini
+    low_degree_nodes = nodes_with_less_neighbors(G)
 
-        print(f"Caricando il grafo dal file: {percorso}")
-        with open(percorso, "r") as f:
-            lines = [line for line in f if not line.startswith("%")]
-
-        if not lines:
-            raise ValueError("Il file fornito non contiene archi validi.")
-
-        with open("filtered_edges.txt", "w") as f:
-            f.writelines(lines)
-
-        grafo = nx.read_edgelist("filtered_edges.txt", nodetype=int, create_using=nx.Graph())
-        print(f"Grafo caricato con successo: {grafo.number_of_nodes()} nodi, {grafo.number_of_edges()} archi.")
-        return grafo
-
-
-    # Funzione per trovare e visualizzare i nodi con meno vicini
-    def nodes_with_least_neighbors(grafo, top_n=5, num_nodi=5000):
-        """
-        Trova i nodi con il minor numero di vicini.
-        """
-        sub_grafo = grafo.subgraph(list(grafo.nodes)[:num_nodi])
-
-        print(f"Calcolo dei {top_n} nodi con il minor numero di vicini...")
-        degrees = sub_grafo.degree()
-        bottom_nodes = sorted(degrees, key=lambda x: x[1])[:top_n]
-        print(f"Nodi con meno vicini: {bottom_nodes}")
-
-        # Visualizza i nodi con meno vicini
-        pos = nx.spring_layout(sub_grafo)
-        plt.figure(figsize=(12, 12))
-        nx.draw(sub_grafo, pos, with_labels=True, node_color='lightgray', edge_color='lightgray')
-        nx.draw_networkx_nodes(sub_grafo, pos, nodelist=[n[0] for n in bottom_nodes], node_color='red', node_size=500)
-        plt.title(f"Top {top_n} nodi con meno vicini")
-        plt.show()
-
-
-    # Caricamento del grafo
-    grafo = carica_grafo_da_edges(DATASET_PATH)
-
-    # Analisi dei nodi con meno vicini
-    nodes_with_least_neighbors(grafo, top_n=5, num_nodi=5000)
-
-    print("Fine del programma.")
+    # Crea il grafico e salva l'immagine
+    plot_graph_with_low_degree_nodes(G, low_degree_nodes, output_image)
