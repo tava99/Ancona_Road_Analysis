@@ -63,7 +63,7 @@ def analyze_ego_networks_from_geometry(file_path, layer, ego_node, radius=1):
     plt.title(f"Ego Network di '{ego_node}' (raggio={radius})")
 
     # Salvataggio dell'immagine
-    output_dir = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results"
+    output_dir = <Insert the path of the 'results' folder>
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, f"ego_network.png")
     plt.savefig(output_file)
@@ -74,8 +74,8 @@ def analyze_ego_networks_from_geometry(file_path, layer, ego_node, radius=1):
 
 
 # Configurazione del file e layer
-file_path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
-layer = "edges"  # Specifica il layer degli archi
+file_path = <Insert the filtered dataset's path .gpkg>
+layer = "edges" 
 ego_node = ((13.507047, 43.6135432))  # Esempio di nodo come coordinate (longitudine, latitudine)
 radius = 3  # Scegliere il raggio
 
