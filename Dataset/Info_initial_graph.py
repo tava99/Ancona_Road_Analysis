@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Percorso del file
-gpkg_file = "C:\\Users\\pc\\OneDrive\\Desktop\\Magistrale Ancona\\Data science\\Progetto\\Networkx\\042002_Ancona-2024-11-12T08Z.gpkg"
+gpkg_file = <Insert the dataset's path .gpkg>
 
 # Elenco di tutti i layer nel GeoPackage
 layers = fiona.listlayers(gpkg_file)
@@ -38,7 +38,7 @@ table.set_fontsize(10)
 table.auto_set_column_width(col=list(range(len(informazioni_layer_df.columns))))
 
 # Salva la tabella come immagine nella cartella specificata
-output_path = "C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results\\initial_info_table.png"
+output_path = <Insert the path of the 'results' folder>
 plt.savefig(output_path, dpi=300, bbox_inches='tight')
 
 # Conferma salvataggio
