@@ -79,8 +79,8 @@ def plot_histogram_of_centrality(centrality, title, filename):
         print(f"Errore durante la generazione dell'istogramma: {e}")
 
 if __name__ == "__main__":
-    file_path = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\data\\filtered_ancona.gpkg"  # Dataset tagliato
-    output_dir = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results"
+    file_path = <Insert the filtered dataset's path .gpkg>
+    output_dir = <Insert the path of the 'results' folder>
 
     # Assicurati che la directory di output esista
     os.makedirs(output_dir, exist_ok=True)
