@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 
 # Carica il dataset
-file_path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
+file_path = <Insert the dataset's path .gpkg>
 data = gpd.read_file(file_path)
 
 # Filtra i dati per 'highway'
@@ -34,12 +34,12 @@ plt.legend(title="Highway", fontsize=10, loc="upper right", markerscale=2)
 
 # Salva e mostra la mappa
 plt.tight_layout()
-plt.savefig(r"C:\Users\pc\PycharmProjects\Ancona_Road_Analysis2\results\map_highway.png")  # Salva la mappa
+plt.savefig(r"C:\Users\pc\PycharmProjects\Ancona_Road_Analysis2\results\map_highway.png") 
 plt.show()
 
 # Crea una figura separata per la tabella
 fig, ax = plt.subplots(figsize=(10, 6))
-ax.axis('off')  # Nasconde gli assi
+ax.axis('off')  
 
 # Crea una tabella  con categorie e conteggi
 table_data = pd.DataFrame({
@@ -58,7 +58,7 @@ table.set_fontsize(12)  # Imposta una dimensione del font leggibile
 table.auto_set_column_width(col=list(range(len(table_data.columns))))
 
 # Salva la tabella come immagine
-output_path_table = r"C:\Users\pc\PycharmProjects\Ancona_Road_Analysis2\results\table_highway.png"
+output_path_table = <Insert the path of the 'results' folder>
 plt.tight_layout()
 plt.savefig(output_path_table)
 plt.show()
