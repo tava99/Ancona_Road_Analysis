@@ -69,10 +69,9 @@ def plot_graph_with_high_degree_nodes(G, high_degree_nodes, output_path):
 
 
 if __name__ == "__main__":
-    # Configura i percorsi
-    file_path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
-    layer_name = "edges"  # Sostituisci con il nome corretto del layer
-    output_image = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results\graph_high_degree_nodes.png"
+    file_path = <Insert the filtered dataset's path .gpkg>
+    layer_name = "edges" 
+    output_image = <Insert the path of the 'results' folder>
 
     # Carica il grafo dal dataset
     G = load_graph_from_gpkg(file_path, layer_name)
