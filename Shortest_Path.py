@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 
 # Percorso al file GeoPackage
-path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
+path = <Insert the filtered dataset's path .gpkg>
 
 # Coordinate dei nodi di partenza e arrivo
 start_node = (13.507047, 43.6135432)  # (longitudine, latitudine)
@@ -72,7 +72,7 @@ try:
         print(coord)
 
     # Directory di output per le immagini
-    output_dir = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results"
+    output_dir = <Insert the path of the 'results' folder>
     os.makedirs(output_dir, exist_ok=True)
 
     # Disegna il grafo e il percorso più breve
