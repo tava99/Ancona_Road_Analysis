@@ -3,7 +3,7 @@ import geopandas as gpd
 from shapely.geometry import LineString
 
 # Percorso al file di Ancona
-gpkg_file = r"C:\Users\pc\OneDrive\Desktop\Magistrale Ancona\Data science\Progetto\Networkx\042002_Ancona-2024-11-12T08Z.gpkg"
+gpkg_file = <Insert the dataset's path .gpkg>
 
 def load_graph_from_gpkg_interactive(gpkg_file, layer_name="lines"):
     """
