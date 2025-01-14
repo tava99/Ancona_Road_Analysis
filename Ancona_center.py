@@ -2,8 +2,9 @@ import geopandas as gpd
 from shapely.geometry import Polygon
 
 # Percorso del file e definizione dell'output
-gpkg_path = r"C:\\Users\\pc\\OneDrive\\Desktop\\Magistrale Ancona\\Data science\\Progetto\\Networkx\\042002_Ancona-2024-11-12T08Z.gpkg"
-output_path = r"C:\\Users\\pc\\OneDrive\\Desktop\\Magistrale Ancona\\Data science\\Progetto\\Networkx\\filtered_ancona.gpkg"
+gpkg_path = <Insert the dataset's path .gpkg>
+output_path = <Insert the filtered dataset's path .gpkg>
+
 
 # Definizione del poligono per la zona centrale di Ancona
 central_zone_coords = [
