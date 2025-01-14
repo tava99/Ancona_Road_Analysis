@@ -56,8 +56,8 @@ def analyze_cliques(G, output_dir):
 
 if __name__ == "__main__":
     # Percorso del dataset
-    file_path = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\data\filtered_ancona.gpkg"
-    output_dir = r"C:\Users\pc\PycharmProjects\Social_Network_Analysis\results\cliques"
+    file_path = <Insert the filtered dataset's path .gpkg>
+    output_dir = <Insert the path of the 'results' folder>
 
     # Carica il grafo dal dataset
     G = load_graph_from_gpkg(file_path, layer_name="edges")
