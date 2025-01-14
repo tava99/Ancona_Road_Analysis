@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 
 # Carica il dataset
-file_path = <Insert the dataset's path .gpkg>
+file_path = <Insert the filtered dataset's path .gpkg>
 data = gpd.read_file(file_path)
 
 # Filtra i dati per 'highway'
