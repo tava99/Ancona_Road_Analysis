@@ -74,8 +74,8 @@ def compute_and_plot_degree_centrality(file_path, output_dir):
     plot_centrality_histogram(centrality, "Istogramma della Degree Centrality", filename=hist_filename)
 
 if __name__ == "__main__":
-    file_path = r"C:\\Users\\pc\\OneDrive\\Desktop\\Magistrale Ancona\\Data science\\Progetto\\Networkx\\filtered_ancona.gpkg"  # Dataset tagliato
-    output_dir = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results"
+    file_path = <Insert the filtered dataset's path .gpkg>
+    output_dir = <Insert the path of the 'results' folder>
     os.makedirs(output_dir, exist_ok=True)
 
     compute_and_plot_degree_centrality(file_path, output_dir)
