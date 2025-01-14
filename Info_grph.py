@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # File path per il dataset filtrato
-gpkg_file = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\data\\filtered_ancona.gpkg"
+gpkg_file = <Insert the filtered dataset's path .gpkg>
 
 # Elenca tutti i layer nel GeoPackage
 layers = fiona.listlayers(gpkg_file)
@@ -38,7 +38,7 @@ table.set_fontsize(10)
 table.auto_set_column_width(col=list(range(len(layer_info_df.columns))))
 
 # Salva la tabella come immagine
-output_image_path = r"C:\\Users\\pc\\PycharmProjects\\Social_Network_Analysis\\results\\layer_info_table.png"
+output_image_path = <Insert the path of the 'results' folder>
 plt.savefig(output_image_path, dpi=300, bbox_inches='tight')
 
 # Mostra conferma
